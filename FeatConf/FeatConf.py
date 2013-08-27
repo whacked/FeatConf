@@ -142,10 +142,19 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
             print("\n*** WARNING: this evspec has no inputs ***\n")
             return ""
         for input_number, input_element in enumerate(self.__class__._inputlist[self.default_design_key], start=1):
+            height = 0
+            if 'height' in input_element:
+                if type(input_element['height']) is dict:
+                    height = input_element['height'][self.title]
+                else:
+                    ## XXX RISKY XXX
+                    height = input_element['height']
+            elif input_element.label == self.title:
+                height = 1
             rtn.append(self.template_evvalue.substitute(
                 EVNUMBER = self.evnumber,
                 INPUTNUMBER = input_number,
-                INPUTVALUE = input_element.label == self.title and 1 or 0,
+                INPUTVALUE = height,
                 ))
         return "\n".join(rtn)
     
