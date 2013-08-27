@@ -1,4 +1,5 @@
 import os, sys, types, re
+import string
 
 # supposed to contain a class, FeatConf, to ease working with fsf files in
 # python.  started as a quick-and-dirty parsing class with little semantic
@@ -67,6 +68,139 @@ class Bunch(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
+class EVSpec:
+    template_evvalue = string.Template("""\
+# Higher-level EV value for EV $EVNUMBER and input $INPUTNUMBER
+set fmri(evg$INPUTNUMBER.$EVNUMBER) $INPUTVALUE
+""")
+    template_ortho = string.Template("""\
+# Orthogonalise EV $EVNUMBER wrt EV $TARGETEVNUMBER
+set fmri(ortho$EVNUMBER.$TARGETEVNUMBER) $ORTHO_YESNO
+""")
+    _design = {None: {}}
+    _inputlist = {None: []}
+
+    def __init__(self, **kw):
+        self.default_design_key = None
+        if kw.get('add_to_design'):
+            design_key = kw['add_to_design']
+            self.default_design_key = design_key
+            if design_key not in self.__class__._design:
+                ## note we add a dummy default
+                self.__class__._design[design_key] = {0: 'dummy'}
+            ## NOTE: this is very unsafe to repeated modifications
+            EVNUMBER = kw.get('evnumber', len(self.__class__._design[design_key]))
+            if EVNUMBER in self.__class__._design[design_key]:
+                raise Exception('the ev number `%s` is already in the design!' % EVNUMBER)
+            self.__class__._design[design_key][EVNUMBER] = self
+        else:
+            EVNUMBER = kw['evnumber']
+
+        self.evnumber = EVNUMBER
+
+        self.evtitle        = kw['title']
+        ## end values are class defaults
+        self.waveform       = kw.get('waveform',       2)
+        self.convolution    = kw.get('convolution',    0)
+        self.convolve_phase = kw.get('convolve_phase', 0)
+        self.tempfilt_yn    = kw.get('tempfilt_yn',    0)
+        self.deriv_yn       = kw.get('deriv_yn',       0)
+
+        ## list the EVNUMBERs that the current EV is orthogonalized against
+        ## the 'None' is a dummy since there is always an EV 0 and that ortho is always on
+        self.orthodict = {0: True,}
+
+    def add_input(self, mixed, add_to_design = None):
+        if type(mixed) is dict:
+            input_ev = Bunch(**mixed)
+        else:
+            raise Exception('input of this type is not handled yet')
+
+        if add_to_design is None:
+            print("WARNING: adding to the dummy design list!")
+        if add_to_design not in self.__class__._inputlist:
+            self.__class__._inputlist[add_to_design] = []
+        self.__class__._inputlist[add_to_design].append(input_ev)
+
+    def render_all_evvalue(self):
+        rtn = []
+        if self.default_design_key not in self.__class__._inputlist:
+            print("\n*** WARNING: this evspec has no inputs ***\n")
+            return ""
+        for input_number, input_ev in enumerate(self.__class__._inputlist[self.default_design_key], start=1):
+            rtn.append(self.template_evvalue.substitute(
+                EVNUMBER = self.evnumber,
+                INPUTNUMBER = input_number,
+                INPUTVALUE = input_ev.value,
+                ))
+        return "\n".join(rtn)
+    
+    def render_all_ortho(self):
+        rtn = []
+        for targetev_evnumber, targetev in self.__class__._design[self.default_design_key].items():
+            if targetev_evnumber is 0:
+                ortho_yesno = 1
+            else:
+                ortho_yesno = self.orthodict.get(targetev_evnumber, 0)
+            rtn.append(self.template_ortho.substitute(
+                EVNUMBER = self.evnumber,
+                TARGETEVNUMBER = targetev_evnumber,
+                ORTHO_YESNO = ortho_yesno,
+                ))
+        return "\n".join(rtn)
+
+    def __str__(self):
+        return string.Template("""\
+# EV $EVNUMBER title
+set fmri(evtitle$EVNUMBER) "$EVTITLE"
+
+# Basic waveform shape (EV $EVNUMBER)
+# 0 : Square
+# 1 : Sinusoid
+# 2 : Custom (1 entry per volume)
+# 3 : Custom (3 column format)
+# 4 : Interaction
+# 10 : Empty (all zeros)
+set fmri(shape$EVNUMBER) $WAVEFORM
+
+# Convolution (EV $EVNUMBER)
+# 0 : None
+# 1 : Gaussian
+# 2 : Gamma
+# 3 : Double-Gamma HRF
+# 4 : Gamma basis functions
+# 5 : Sine basis functions
+# 6 : FIR basis functions
+set fmri(convolve$EVNUMBER) $CONVOLUTION
+
+# Convolve phase (EV $EVNUMBER)
+set fmri(convolve_phase$EVNUMBER) $CONVOLVE_PHASE
+
+# Apply temporal filtering (EV $EVNUMBER)
+set fmri(tempfilt_yn$EVNUMBER) $TEMPFILT_YN
+
+# Add temporal derivative (EV $EVNUMBER)
+set fmri(deriv_yn$EVNUMBER) $DERIV_YN
+
+# Custom EV file (EV $EVNUMBER)
+set fmri(custom$EVNUMBER) "dummy"
+
+$EVVALUESTRING
+$EVORTHOSTRING""").substitute(
+        EVTITLE = self.evtitle,
+        EVNUMBER = self.evnumber,
+
+        WAVEFORM       = self.waveform,
+        CONVOLUTION    = self.convolution,
+        CONVOLVE_PHASE = self.convolve_phase,
+        TEMPFILT_YN    = self.tempfilt_yn,
+        DERIV_YN       = self.deriv_yn,
+
+        EVORTHOSTRING = self.render_all_evvalue(),
+        EVVALUESTRING = self.render_all_ortho(),
+        )
+
 
 
 class FeatConf:
