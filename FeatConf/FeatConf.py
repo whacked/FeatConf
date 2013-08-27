@@ -221,6 +221,108 @@ $EVORTHOSTRING""").substitute(
         )
 
 
+class ContrastSpec:
+    template_contrast_head = string.Template("""\
+# Display images for contrast_real $CONTRAST_NUMBER
+set fmri(conpic_real.$CONTRAST_NUMBER) $CONPIC_REAL_YN
+
+# Title for contrast_real $CONTRAST_NUMBER
+set fmri(conname_real.$CONTRAST_NUMBER) "$CONTRAST_TITLE"
+""")
+    template_contrast_vector = string.Template("""\
+# Real contrast_real vector $CONTRAST_NUMBER element $ELEMENT_NUMBER
+set fmri(con_real$CONTRAST_NUMBER.$ELEMENT_NUMBER) $CONTRAST_VALUE
+""")
+    template_contrast_ftest_mask = string.Template("""\
+# Mask real contrast/F-test $CONTRAST_NUMBER with real contrast/F-test $ELEMENT_NUMBER?
+set fmri(conmask${CONTRAST_NUMBER}_${ELEMENT_NUMBER}) $MASK_YESNO
+""")
+
+    def __init__(self, **kw):
+
+        self.nftests_orig = 0
+        self.nftests_real = 0
+
+        self.con_real = {}
+        self.con_orig = {}
+
+        self.dcontrast = {}
+        self.doracle = {}
+        self.devspec = {}
+        self.evlist = []
+
+    def add_ev(self, *levspec):
+        for evspec in levspec:
+            self.evlist.append(evspec)
+            if evspec.title not in self.devspec:
+                self.devspec[evspec.title] = len(self.devspec)+1
+
+    def get_sorted_evspec_list(self):
+        return sorted(self.devspec.items(), cmp=lambda a, b: a[1] > b[1] and 1 or -1)
+
+    def add_contrast(self, title, oracle, **kw):
+        if title not in self.con_real:
+            self.con_real[title] = {
+                    'title': title,
+                    'number': len(self.con_real)+1,
+                    'conpic': kw.get('conpic', 1),
+                    'mask_yesno': kw.get('mask_yesno', 0),
+                    }
+            if kw.get('mask_yesno'):
+                raise Exception('WARNING: F-test mask is not implemented! Will not do what you think it does')
+
+        sorted_evspec_values = self.get_sorted_evspec_list()
+        if type(oracle) == types.FunctionType:
+            oracle = map(oracle, [pair[1] for pair in sorted_evspec_values])
+        ## else assume mapping from ev title to group id
+        self.doracle[title] = dict(zip(range(1, 1+len(self.devspec)), oracle))
+
+    def render_all_contrast_string(self):
+        rtn = []
+        for contrast_title, dcontrast in self.con_real.items():
+            rtn.append(self.template_contrast_head.substitute(
+                CONTRAST_TITLE = contrast_title,
+                CONTRAST_NUMBER = dcontrast['number'],
+                CONPIC_REAL_YN = dcontrast['conpic'],
+                ))
+            for spec_title, spec_number in self.get_sorted_evspec_list():
+                rtn.append(self.template_contrast_vector.substitute(
+                    CONTRAST_NUMBER = dcontrast['number'],
+                    ELEMENT_NUMBER = spec_number,
+                    CONTRAST_VALUE = self.doracle[contrast_title][spec_number],
+                    ))
+        return "\n".join(rtn)
+    def render_all_ftest_mask_string(self):
+        rtn = []
+        for contrast_title, dcontrast in self.con_real.items():
+            for other_title, otherd in self.con_real.items():
+                if contrast_title == other_title: continue
+                rtn.append(self.template_contrast_ftest_mask.substitute(
+                    CONTRAST_NUMBER = dcontrast['number'],
+                    ELEMENT_NUMBER  = otherd['number'],
+                    MASK_YESNO      = dcontrast.get('mask_yesno', 0),
+                    ))
+        return "\n".join(rtn)
+
+    def __str__(self):
+        return string.Template("""\
+# Contrast & F-tests mode
+# real : control real EVs
+# orig : control original EVs
+set fmri(con_mode_old) real
+set fmri(con_mode) real
+
+$CONTRAST_STRING
+# Contrast masking - use >0 instead of thresholding?
+set fmri(conmask_zerothresh_yn) 0
+
+$FTEST_MASK_STRING
+# Do contrast masking at all?
+set fmri(conmask1_1) 0
+""").substitute(
+        CONTRAST_STRING = self.render_all_contrast_string(),
+        FTEST_MASK_STRING = self.render_all_ftest_mask_string(),
+        )
 
 class FeatConf:
 
