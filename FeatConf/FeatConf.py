@@ -122,6 +122,8 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
     def add_input(self, mixed, add_to_design = None):
         if type(mixed) is dict:
             input_element = Bunch(**mixed)
+            if 'groupmem' not in input_element:
+                input_element['groupmem'] = 1
         else:
             raise Exception('input of this type is not handled yet')
 
@@ -140,7 +142,7 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
             rtn.append(self.template_evvalue.substitute(
                 EVNUMBER = self.evnumber,
                 INPUTNUMBER = input_number,
-                INPUTVALUE = input_ev.value,
+                INPUTVALUE = input_element.label == self.title and 1 or 0,
                 ))
         return "\n".join(rtn)
     
