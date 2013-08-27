@@ -87,12 +87,20 @@ set fmri(ortho$EVNUMBER.$TARGETEVNUMBER) $ORTHO_YESNO
 set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
 """)
     _design = {None: {}}
+    _design_number_lookup = {}
     _inputlist = {None: []}
 
     def inputlist(self):
         return self.__class__._inputlist[self.default_design_key]
 
+    def get_evnumber(self, evtitle):
+        design = self.default_design_key
+        return self.__class__._design_number_lookup[design].get(evtitle)
+
     def __init__(self, **kw):
+
+        self.title = kw['title']
+
         self.default_design_key = None
         if kw.get('add_to_design'):
             design_key = kw['add_to_design']
@@ -100,17 +108,18 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
             if design_key not in self.__class__._design:
                 ## note we add a dummy default
                 self.__class__._design[design_key] = {0: 'dummy'}
+                self.__class__._design_number_lookup[design_key] = {}
             ## NOTE: this is very unsafe to repeated modifications
             EVNUMBER = kw.get('evnumber', len(self.__class__._design[design_key]))
             if EVNUMBER in self.__class__._design[design_key]:
                 raise Exception('the ev number `%s` is already in the design!' % EVNUMBER)
             self.__class__._design[design_key][EVNUMBER] = self
+            self.__class__._design_number_lookup[design_key][self.title] = EVNUMBER
         else:
             EVNUMBER = kw['evnumber']
 
         self.evnumber = EVNUMBER
 
-        self.title        = kw['title']
         ## end values are class defaults
         self.waveform       = kw.get('waveform',       2)
         self.convolution    = kw.get('convolution',    0)
@@ -157,6 +166,10 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
                 INPUTVALUE = height,
                 ))
         return "\n".join(rtn)
+
+    def add_ortho(self, targetev_title):
+        targetev_number = self.get_evnumber(targetev_title)
+        self.orthodict[targetev_number] = 1
     
     def render_all_ortho(self):
         rtn = []
@@ -291,7 +304,7 @@ set fmri(conmask${CONTRAST_NUMBER}_${ELEMENT_NUMBER}) $MASK_YESNO
 
     def render_all_contrast_string(self):
         rtn = []
-        for contrast_title, dcontrast in self.con_real.items():
+        for contrast_title, dcontrast in sorted(self.con_real.items(), cmp=lambda a, b: a[1]['number'] > b[1]['number'] and 1 or -1):
             rtn.append(self.template_contrast_head.substitute(
                 CONTRAST_TITLE = contrast_title,
                 CONTRAST_NUMBER = dcontrast['number'],
@@ -306,8 +319,9 @@ set fmri(conmask${CONTRAST_NUMBER}_${ELEMENT_NUMBER}) $MASK_YESNO
         return "\n".join(rtn)
     def render_all_ftest_mask_string(self):
         rtn = []
-        for contrast_title, dcontrast in self.con_real.items():
-            for other_title, otherd in self.con_real.items():
+        sorted_items = sorted(self.con_real.items(), cmp=lambda a, b: a[1]['number'] > b[1]['number'] and 1 or -1)
+        for contrast_title, dcontrast in sorted_items:
+            for other_title, otherd in sorted_items:
                 if contrast_title == other_title: continue
                 rtn.append(self.template_contrast_ftest_mask.substitute(
                     CONTRAST_NUMBER = dcontrast['number'],
