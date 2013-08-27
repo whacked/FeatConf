@@ -107,7 +107,7 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
 
         self.evnumber = EVNUMBER
 
-        self.evtitle        = kw['title']
+        self.title        = kw['title']
         ## end values are class defaults
         self.waveform       = kw.get('waveform',       2)
         self.convolution    = kw.get('convolution',    0)
