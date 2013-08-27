@@ -121,7 +121,7 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
 
     def add_input(self, mixed, add_to_design = None):
         if type(mixed) is dict:
-            input_ev = Bunch(**mixed)
+            input_element = Bunch(**mixed)
         else:
             raise Exception('input of this type is not handled yet')
 
@@ -129,14 +129,14 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
             print("WARNING: adding to the dummy design list!")
         if add_to_design not in self.__class__._inputlist:
             self.__class__._inputlist[add_to_design] = []
-        self.__class__._inputlist[add_to_design].append(input_ev)
+        self.__class__._inputlist[add_to_design].append(input_element)
 
     def render_all_evvalue(self):
         rtn = []
         if self.default_design_key not in self.__class__._inputlist:
             print("\n*** WARNING: this evspec has no inputs ***\n")
             return ""
-        for input_number, input_ev in enumerate(self.__class__._inputlist[self.default_design_key], start=1):
+        for input_number, input_element in enumerate(self.__class__._inputlist[self.default_design_key], start=1):
             rtn.append(self.template_evvalue.substitute(
                 EVNUMBER = self.evnumber,
                 INPUTNUMBER = input_number,
