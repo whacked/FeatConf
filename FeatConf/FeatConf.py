@@ -386,6 +386,46 @@ conmask_zerothresh_yn
                 self.group[entry.groupname] = {}
             self.group[entry.groupname][entry.entrykey] = entry
 
+        parentconf = self
+        class FeatFileList(list):
+            def _length_change_callback(self, fn):
+                def wrapped(*argv):
+                    oldlength = len(self)
+                    rtn = fn(*argv)
+
+                    newlength = len(self)
+                    if newlength != oldlength:
+
+                        ## find number of EVs
+
+
+
+                        ## reorganize the feat_files list
+                        for num, entry in enumerate(self, start=1):
+                            basecomment, oldevnum = FeatEntry.p.findall(entry.comment)[0]
+                            oldgroupval = parentconf.group['fmri']['groupmem.%s'%oldevnum]
+
+                            ## *** OVERWRITE ***
+                            entry.name = 'feat_files(%s)' % num
+                            entry.entrykey = num
+                            entry.comment = basecomment + '(%s)'%num
+                            parentconf.group['fmri']['groupmem.%s'%num] = oldgroupval
+
+                        parentconf.group['fmri']['npts'] = newlength
+                        parentconf.group['fmri']['multiple'] = newlength
+
+                    return rtn
+                return wrapped
+            def __init__(self, *argv):
+                super(FeatFileList, self).__init__(*argv)
+                ## change length-altering list functions
+                ## to fire events
+                for fname in ('append', 'extend', 'insert', 'pop', 'remove'):
+                    fn = getattr(self, fname)
+                    setattr(self, fname, FeatFileList._length_change_callback(self, fn))
+
+        self.feat_files = FeatFileList([self.group['feat_files'][k] for k in sorted(self.group['feat_files'])])
+
     def __getitem__(self, name):
         return self.dc_index.get(name).value
 
