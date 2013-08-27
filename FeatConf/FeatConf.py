@@ -59,7 +59,11 @@ class FeatEntry:
 
     def __repr__(self):
         return str(self)
-        
+
+class FeatInput(FeatEntry):
+    def __init__(self, name, value, comment, groupnum):
+        super(FeatInput, self).__init__(name, value, comment)
+        self.groupnum = groupnum
 
 class Bunch(dict):
     def __init__(self, **kw):
