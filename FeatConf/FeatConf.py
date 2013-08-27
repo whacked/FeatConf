@@ -82,6 +82,10 @@ set fmri(evg$INPUTNUMBER.$EVNUMBER) $INPUTVALUE
 # Orthogonalise EV $EVNUMBER wrt EV $TARGETEVNUMBER
 set fmri(ortho$EVNUMBER.$TARGETEVNUMBER) $ORTHO_YESNO
 """)
+    template_groupmem = string.Template("""\
+# Group membership for input $INPUTNUMBER
+set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
+""")
     _design = {None: {}}
     _inputlist = {None: []}
 
@@ -151,6 +155,15 @@ set fmri(ortho$EVNUMBER.$TARGETEVNUMBER) $ORTHO_YESNO
                 EVNUMBER = self.evnumber,
                 TARGETEVNUMBER = targetev_evnumber,
                 ORTHO_YESNO = ortho_yesno,
+                ))
+        return "\n".join(rtn)
+
+    def render_all_groupmem(self):
+        rtn = []
+        for input_number, input_element in enumerate(self.__class__._inputlist[self.default_design_key], start=1):
+            rtn.append(self.template_groupmem.substitute(
+                INPUTNUMBER = input_number,
+                GROUPMEM = input_element.groupmem,
                 ))
         return "\n".join(rtn)
 
