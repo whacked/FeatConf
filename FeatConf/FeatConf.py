@@ -89,6 +89,9 @@ set fmri(groupmem.$INPUTNUMBER) $GROUPMEM
     _design = {None: {}}
     _inputlist = {None: []}
 
+    def inputlist(self):
+        return self.__class__._inputlist[self.default_design_key]
+
     def __init__(self, **kw):
         self.default_design_key = None
         if kw.get('add_to_design'):
@@ -205,9 +208,9 @@ set fmri(deriv_yn$EVNUMBER) $DERIV_YN
 # Custom EV file (EV $EVNUMBER)
 set fmri(custom$EVNUMBER) "dummy"
 
-$EVVALUESTRING
-$EVORTHOSTRING""").substitute(
-        EVTITLE = self.evtitle,
+$EVORTHOSTRING
+$EVVALUESTRING""").substitute(
+        EVTITLE = self.title,
         EVNUMBER = self.evnumber,
 
         WAVEFORM       = self.waveform,
@@ -216,8 +219,8 @@ $EVORTHOSTRING""").substitute(
         TEMPFILT_YN    = self.tempfilt_yn,
         DERIV_YN       = self.deriv_yn,
 
-        EVORTHOSTRING = self.render_all_evvalue(),
-        EVVALUESTRING = self.render_all_ortho(),
+        EVORTHOSTRING = self.render_all_ortho(),
+        EVVALUESTRING = self.render_all_evvalue(),
         )
 
 
