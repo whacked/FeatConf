@@ -205,7 +205,7 @@ $EVORTHOSTRING""").substitute(
 
 class FeatConf:
 
-    FEATVERSION = 5.98
+    FOR_FEAT_VERSION = 6.00
 
     def output_order(self):
         out = []
